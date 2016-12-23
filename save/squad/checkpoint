@@ -1,0 +1,2 @@
+model_checkpoint_path: "squad"
+all_model_checkpoint_paths: "squad"

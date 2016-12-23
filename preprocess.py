@@ -4,12 +4,19 @@ import re
 import pickle as pkl
 import numpy as np
 from tensorflow.contrib import learn
+import collections
 
 ROOT_PATH = os.getcwd()
 
+DATASET = {
+    'squad': 'Squad',
+    'qa': 'QA'
+}
+
 # Return testing data
-def test_data():
-    with open(ROOT_PATH + '/dataset/Squad/testing_data.json') as f:
+def test_data(name='squad'):
+    path = '/dataset/%s/testing_data.json' % DATASET[name]
+    with open(ROOTPATH + path) as f:
         data = json.loads(f.read())
     sents = [Sentence(x) for x in data]
     qq = [x.q() for x in sents]
@@ -18,8 +25,9 @@ def test_data():
     return qq, ll, cc
 
 # Return training data
-def train_data():
-    with open(ROOT_PATH + '/dataset/Squad/training_data.json') as f:
+def train_data(name='squad'):
+    path = '/dataset/%s/training_data.json' % DATASET[name]
+    with open(ROOT_PATH + path) as f:
         data = json.loads(f.read())
     sents = [Sentence(x) for x in data]
     qq = [x.q() for x in sents]
@@ -30,7 +38,7 @@ def train_data():
 
 # Transform text sentences to sequence of ids with padding zeros
 def build_vocab(text, processor=None):
-    assert type(text) == list
+    assert isinstance(text, collections.Iterable), "Must be iterable"
     if not processor:
         assert os.path.isfile('save/vocab.pkl'), 'save/vocab.pkl not found!'
         processor = learn.preprocessing.VocabularyProcessor.restore('save/vocab.pkl')
