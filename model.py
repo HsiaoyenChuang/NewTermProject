@@ -34,22 +34,22 @@ class GRUModel:
     @lazy_property
     def prediction(self):
         '''return embedded context & question vector, merged into one output'''
-        self.cell = tf.nn.rnn_cell.GRUCell(self._num_hidden)
-        self.network = tf.nn.rnn_cell.MultiRNNCell([self.cell] * self._num_layers)
+        cell = tf.nn.rnn_cell.LSTMCell(self._num_hidden)
+        network = tf.nn.rnn_cell.MultiRNNCell([cell] * self._num_layers)
         # embed context & question
         with tf.variable_scope('iq'):
-            oq, _ = tf.nn.dynamic_rnn(self.network, self.iq, dtype=tf.float32)
+            oq, _ = tf.nn.dynamic_rnn(network, self.iq, dtype=tf.float32)
             oq = tf.transpose(oq, [1, 0, 2])
         with tf.variable_scope('ic'):
-            oc, _ = tf.nn.dynamic_rnn(self.network, self.ic, dtype=tf.float32)
+            oc, _ = tf.nn.dynamic_rnn(network, self.ic, dtype=tf.float32)
             oc = tf.transpose(oc, [1, 0, 2])
         # select last output
         lq = tf.gather(oq, int(oq.get_shape()[0]) - 1)
         lc = tf.gather(oc, int(oc.get_shape()[0]) - 1)
         # combine embedding for question & context
         weight, bias = self._weight_and_bias(
-            self._num_hidden, int(self.ir.get_shape()[1]))
-        return lq + tf.matmul(lc,  weight) + bias
+            self._num_hidden, int(self.iq.get_shape()[2]))
+        return lq + tf.matmul(lc, weight) + bias
 
     @lazy_property
     def answer(self):
@@ -71,8 +71,8 @@ class GRUModel:
     def cosine_cost(self):
         '''cosine distance as cost function'''
         r, w = self.answer
-        return tf.reduce_mean(tf.maximum( # normailize with batch_size so don't have to change learning rate 
-            0., MARGIN - self.cos_sim(self.state, r) + self.cos_sim(self.state, w))) / batch_size * 10
+        return tf.reduce_mean(tf.maximum(
+            0., MARGIN - self.cos_sim(self.state, r) + self.cos_sim(self.state, w)))
 
     @lazy_property
     def optimize(self):
@@ -83,8 +83,7 @@ class GRUModel:
     def evaluate(self):
         '''evaluate cosine similarity of an answer option'''
         opt1, opt2 = self.answer
-        # return self.cos_sim(self.state, opt1) - self.cos_sim(self.state, opt2)
-        return self.cos_sim(self.state, opt1) / batch_size * 10 - self.cos_sim(self.state, opt2) / batch_size * 10
+        return (self.cos_sim(self.state, opt1) - self.cos_sim(self.state, opt2)) - batch_size * 2
 
     def cos_sim(self, x, y):
         '''cosine similarity between 2D tensors x, y, both shape [n x m]'''
